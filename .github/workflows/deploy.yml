@@ -11,31 +11,23 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
 
     - name: Build Docker image
-      run: docker build -t jisho_service .
+      run: |
+        docker build -t jisho-app:latest .
 
-    - name: Save Docker image to tar
-      run: docker save jisho_service > jisho_service.tar
+    - name: Stop and remove old container
+      run: |
+        docker stop jisho-app || true
+        docker rm jisho-app || true
 
-    - name: Upload image to server
-      uses: appleboy/scp-action@v0.1.4
-      with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USER }}
-        key: ${{ secrets.SSH_KEY }}
-        source: "jisho_service.tar"
-        target: "~/jisho_service"
-
-    - name: Deploy on remote server
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USER }}
-        key: ${{ secrets.SSH_KEY }}
-        script: |
-          docker load < ~/jisho_service/jisho_service.tar
-          docker stop jisho_service || true
-          docker rm jisho_service || true
-          docker run -d --name jisho_service -p 3344:5000 jisho_service
+    - name: Run container
+      run: |
+        docker run -d \
+          --name jisho-app \
+          -p 3344:5000 \
+          jisho-app:latest
